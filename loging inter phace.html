@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hotel Booking Portal</title>
+<style>
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(to right, #4facfe, #00f2fe);
+    margin: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+
+  .container, .dashboard {
+    width: 90%;
+    max-width: 400px;
+    background: #fff;
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    animation: fadeIn 0.6s ease;
+  }
+
+  .dashboard { max-width: 1000px; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  input, button {
+    width: 90%;
+    padding: 10px;
+    margin: 8px 0;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    font-size: 15px;
+  }
+
+  input:focus { outline: none; border-color: #4facfe; box-shadow: 0 0 5px #4facfe; }
+
+  button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+
+  button:hover { background-color: #0056b3; }
+  .hidden { display: none; }
+  .back-btn {
+    background: none; color: #007bff; text-decoration: underline;
+    border: none; cursor: pointer; margin-top: 10px;
+  }
+  .success { color: green; font-weight: bold; }
+  .error { color: red; font-weight: bold; }
+
+  header {
+    background: #007bff; color: white;
+    width: 100%; text-align: center; padding: 15px 0;
+    font-size: 22px; font-weight: bold; border-radius: 10px 10px 0 0;
+    margin-bottom: 20px;
+  }
+
+  .hotel-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 20px;
+  }
+
+  .hotel-card {
+    background: #f8f9fa; border-radius: 10px; overflow: hidden; transition: transform 0.3s;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  }
+
+  .hotel-card:hover { transform: translateY(-5px); }
+  .hotel-card img { width: 100%; height: 160px; object-fit: cover; }
+
+  .hotel-info { padding: 15px; text-align: left; }
+  .hotel-info h3 { margin: 0 0 10px; color: #007bff; }
+  .hotel-info p { margin: 5px 0; color: #555; font-size: 14px; }
+
+  .logout-btn {
+    margin-top: 20px;
+    background: #ff4d4d;
+  }
+  .logout-btn:hover { background: #e60000; }
+
+  .details {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 10px;
+    margin-top: 15px;
+    font-size: 15px;
+    line-height: 1.6;
+    text-align: left;
+  }
+</style>
+</head>
+<body>
+
+<!-- Role Selection -->
+<div class="container" id="role-select">
+  <h2>Login As</h2>
+  <button onclick="showCustomerForm()">Customer</button>
+  <button onclick="showOwnerForm()">Hotel Owner</button>
+</div>
+
+<!-- Customer Login -->
+<div class="container hidden" id="customer-form">
+  <h3>Customer Login</h3>
+  <input type="text" id="customerName" placeholder="Enter Your Name"><br>
+  <input type="tel" id="phone" placeholder="Enter Phone Number"><br>
+  <button onclick="sendOTP()">Send OTP</button>
+
+  <div class="hidden" id="otp-section">
+    <input type="text" id="otp" placeholder="Enter OTP">
+    <button onclick="verifyOTP()">Login</button>
+    <p id="otp-msg"></p>
+  </div>
+
+  <button class="back-btn" onclick="goBack()">← Back</button>
+</div>
+
+<!-- Owner Registration -->
+<div class="container hidden" id="owner-form">
+  <h3>Hotel Owner Registration</h3>
+  <input type="text" id="hotelName" placeholder="Hotel Name"><br>
+  <input type="text" id="roomTypes" placeholder="Room Types (e.g. Deluxe, Suite)"><br>
+  <input type="text" id="facilities" placeholder="Facilities (e.g. WiFi, AC)"><br>
+  <input type="file" id="photo" accept="image/*" onchange="previewImage(event)"><br>
+  <img id="photoPreview" style="width:100%;margin-top:10px;display:none;border-radius:10px;">
+  <button onclick="registerOwner()">Register</button>
+  <p id="owner-msg"></p>
+  <button class="back-btn" onclick="goBack()">← Back</button>
+</div>
+
+<!-- Customer Dashboard -->
+<div class="dashboard hidden" id="customer-dashboard">
+  <header id="customer-header">🏨 Welcome, Customer!</header>
+  <div class="hotel-list" id="hotel-list"></div>
+  <button class="logout-btn" onclick="logout()">Logout</button>
+</div>
+
+<!-- Owner Dashboard -->
+<div class="dashboard hidden" id="owner-dashboard">
+  <header id="owner-header">🏨 Owner Dashboard</header>
+  <div class="details" id="hotel-details"></div>
+  <button class="logout-btn" onclick="logout()">Logout</button>
+</div>
+
+<script>
+  function hideAll() {
+    document.querySelectorAll('.container, .dashboard').forEach(el => el.classList.add('hidden'));
+  }
+  function showCustomerForm() { hideAll(); document.getElementById('customer-form').classList.remove('hidden'); }
+  function showOwnerForm() { hideAll(); document.getElementById('owner-form').classList.remove('hidden'); }
+  function goBack() { hideAll(); document.getElementById('role-select').classList.remove('hidden'); }
+
+  let uploadedImage = "";
+
+  function previewImage(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      uploadedImage = e.target.result;
+      const preview = document.getElementById("photoPreview");
+      preview.src = uploadedImage;
+      preview.style.display = "block";
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function sendOTP() {
+    const phone = document.getElementById('phone').value.trim();
+    if(phone.length !== 10){ alert('Enter valid 10-digit number'); return; }
+    const otp = Math.floor(1000 + Math.random()*9000);
+    localStorage.setItem('generatedOTP', otp);
+    alert('OTP sent: ' + otp);
+    document.getElementById('otp-section').classList.remove('hidden');
+  }
+
+  function verifyOTP() {
+    const enteredOTP = document.getElementById('otp').value.trim();
+    const correctOTP = localStorage.getItem('generatedOTP');
+    const name = document.getElementById('customerName').value.trim();
+    const msg = document.getElementById('otp-msg');
+
+    if(!name){ msg.innerHTML = "<span class='error'>Enter your name</span>"; return; }
+
+    if(enteredOTP === correctOTP){
+      localStorage.setItem('customerName', name);
+      msg.innerHTML = "<span class='success'>Login Successful!</span>";
+      setTimeout(showCustomerDashboard, 800);
+    } else { msg.innerHTML = "<span class='error'>Incorrect OTP</span>"; }
+  }
+
+  function showCustomerDashboard() {
+    hideAll();
+    document.getElementById('customer-dashboard').classList.remove('hidden');
+    const name = localStorage.getItem('customerName');
+    document.getElementById('customer-header').textContent = `🏨 Welcome, ${name}!`;
+
+    const hotels = [
+      { name: "Green Valley Resort", location: "Araku", rent: "₹1800/day", facilities: "WiFi, AC, Parking", image:"https://dynamic-media-cdn.tripadvisor.com/media/photo-o/04/44/91/27/green-valley-resort.jpg?w=900&h=500&s=1" },
+      { name: "Sea Breeze Hotel", location: "Goa", rent: "₹2500/day", facilities: "AC, Pool, Free Breakfast", image:"https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=60" },
+      { name: "Hilltop Stay", location: "Ooty", rent: "₹1900/day", facilities: "WiFi, Garden View, Hot Water", image:"https://wildplanetresort.com/frontend/img/preview.jpg" }
+    ];
+
+    const list = document.getElementById('hotel-list'); list.innerHTML = "";
+    hotels.forEach(hotel => {
+      list.innerHTML += `
+        <div class="hotel-card">
+          <img src="${hotel.image}" alt="${hotel.name}">
+          <div class="hotel-info">
+            <h3>${hotel.name}</h3>
+            <p>📍 ${hotel.location}</p>
+            <p>💰 ${hotel.rent}</p>
+            <p>🏕️ ${hotel.facilities}</p>
+            <button onclick="alert('Booking coming soon!')">Book Now</button>
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  function registerOwner() {
+    const name = document.getElementById('hotelName').value.trim();
+    const rooms = document.getElementById('roomTypes').value.trim();
+    const facilities = document.getElementById('facilities').value.trim();
+    const msg = document.getElementById('owner-msg');
+
+    if(!name || !rooms || !facilities || !uploadedImage){
+      msg.innerHTML="<span class='error'>Fill all fields and upload an image</span>";
+      return;
+    }
+
+    const hotelData = { name, rooms, facilities, image: uploadedImage, registeredOn: new Date().toLocaleString() };
+    localStorage.setItem('hotelOwnerData', JSON.stringify(hotelData));
+    msg.innerHTML = "<span class='success'>Registered Successfully!</span>";
+    setTimeout(showOwnerDashboard, 800);
+  }
+
+  function showOwnerDashboard() {
+    hideAll();
+    document.getElementById('owner-dashboard').classList.remove('hidden');
+    const data = JSON.parse(localStorage.getItem('hotelOwnerData'));
+    const div = document.getElementById('hotel-details');
+    if(data){
+      document.getElementById('owner-header').textContent = `🏨 Welcome, ${data.name}!`;
+      div.innerHTML = `
+        <img src="${data.image}" alt="${data.name}" style="width:200px;border-radius:10px;margin-bottom:10px;">
+        <p><strong>Room Types:</strong> ${data.rooms}</p>
+        <p><strong>Facilities:</strong> ${data.facilities}</p>
+        <p><strong>Registered On:</strong> ${data.registeredOn}</p>
+      `;
+    } else { div.innerHTML="<p>No hotel registered yet.</p>"; }
+  }
+
+  function logout(){
+    hideAll();
+    goBack();
+    localStorage.removeItem('customerName');
+  }
+</script>
+</body>
+</html>
